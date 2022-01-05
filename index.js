@@ -21,8 +21,32 @@ async function run() {
   try {
     await client.connect();
     const database = client.db("OrganicRecipe");
+    const categoryCollection = database.collection("categories");
     const vlogCollections = database.collection("vlog");
     const usersCollection = database.collection("users");
+    app.post('/add-category', async (req, res) => {
+      categoryCollection.insertOne({ "categoryName": req.body.categoryName, "subCategoryName": [] });
+      res.send({ "flash": "New category is successfully added", "categoryName": req.body.categoryName });
+    });
+    app.get('/get-categories', async (req, res) => {
+      const categories = await categoryCollection.find().toArray();
+      res.send(categories);
+    });
+    app.get('/get-subcategories/:category', async (req, res) => {
+      const categoryName = req.params.category
+      const categories = await categoryCollection.findOne({ "categoryName": categoryName });
+      res.send(categories);
+    });
+    app.get('/get-services', async (req, res) => {
+      const services = await serviceCollection.find().toArray();
+      res.send(services);
+    });
+    app.post('/add-subCategory', async (req, res) => {
+      console.log(req.body.categoryName)
+      //categoryCollection.insertOne(req.body.categoryName);
+      categoryCollection.updateOne({ "categoryName": req.body.categoryName }, { $set: { "categoryName": req.body.categoryName, "subCategoryName": req.body.subCategoryName } });
+      res.send("New category is successfully added");
+    });
 
     app.get("/vlog", async (req, res) => {
       const cursor = vlogCollections.find({});
@@ -50,10 +74,21 @@ async function run() {
       res.json(result);
     });
 
-    app.post("/users", async (req, res) => {
+    app.post("/user", async (req, res) => {
       const user = req.body;
-      const result = await usersCollection.insertOne(user);
-      res.json(result);
+      const email = req.body.email;
+      const userExist = await usersCollection.findOne({ email: email });
+      if (!userExist) {
+        console.log(user)
+        const result = await usersCollection.insertOne(user);
+        delete user.password;
+        console.log(user)
+        res.json(user);
+      } else {
+        delete userExist.password;
+        res.json(userExist);
+        console.log(userExist)
+      }
     });
 
     app.put("/users", async (req, res) => {
